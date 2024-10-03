@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система управления дроном</title>
+    <style>
+        body {
+            font-family: Courier, sans-serif;
+            background-color: #95c8d8;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #343a40;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        }
+        .control-section {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        input[type="number"], input[type="text"] {
+            width: 95%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #000000;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #000080;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .status {
+            margin-top: 20px;
+        }
+        .alert {
+            color: red;
+        }
+        .weather, .obstacle {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #000000;
+            border-radius: 5px;
+            background-color: #95c8d8;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Система управления БПЛА</h1>
+    <div class="container">
+        <!-- Управление позицией -->
+        <div class="control-section">
+            <h2>Управление позицией</h2>
+            <label for="position">Координаты (x, y):</label>
+            <input type="text" id="position" placeholder="Введите координаты, например: 10, 20">
+            <button onclick="updatePosition()">Обновить позицию</button>
+        </div>
+
+        <!-- Управление высотой -->
+        <div class="control-section">
+            <h2>Управление высотой</h2>
+            <label for="altitude">Высота (м):</label>
+            <input type="number" id="altitude" placeholder="Введите высоту">
+            <button onclick="updateAltitude()">Обновить высоту</button>
+        </div>
+
+        <!-- Управление скоростью -->
+        <div class="control-section">
+            <h2>Управление скоростью</h2>
+            <label for="speed">Скорость (м/с):</label>
+            <input type="number" id="speed" placeholder="Введите скорость">
+            <button onclick="updateSpeed()">Обновить скорость</button>
+        </div>
+
+        <!-- Симуляция сенсоров -->
+        <div class="control-section">
+            <h2>Симуляция данных сенсоров</h2>
+            <button onclick="simulateObstacle()">Симулировать препятствие</button>
+            <button onclick="simulateWeather()">Симулировать погодные условия</button>
+        </div>
+
+        <!-- Проверка заряда батареи -->
+        <div class="control-section">
+            <h2>Проверка заряда батареи</h2>
+            <button onclick="checkBattery()">Проверить заряд</button>
+        </div>
+
+        <!-- Статус -->
+        <div class="status" id="status">
+            <h2>Статус дрона</h2>
+            <div id="drone-status"></div>
+            <div id="alert" class="alert"></div>
+        </div>
+
+        <!-- Погода -->
+        <div class="weather" id="weather">
+            <h3>Погодные условия</h3>
+            <div id="weather-info"></div>
+        </div>
+
+        <!-- Препятствия -->
+        <div class="obstacle" id="obstacle">
+            <h3>Информация о препятствиях</h3>
+            <div id="obstacle-info"></div>
+        </div>
+    </div>
+
+    <script>
+        // Функция для обновления позиции дрона
+        function updatePosition() {
+            const positionInput = document.getElementById('position').value;
+            const position = positionInput.split(',').map(Number); // Преобразуем строку в массив чисел
+            fetch('/position', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ x: position[0], y: position[1] }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                updateDroneStatus(data);
+            });
+        }
+
+        // Функция для обновления высоты дрона
+        function updateAltitude() {
+            const altitude = document.getElementById('altitude').value;
+            fetch('/altitude', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ altitude: Number(altitude) }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                updateDroneStatus(data);
+            });
+        }
+
+        // Функция для обновления скорости дрона
+        function updateSpeed() {
+            const speed = document.getElementById('speed').value;
+            fetch('/speed', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ speed: Number(speed) }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                updateDroneStatus(data);
+            });
+        }
+
+        // Функция для проверки заряда батареи
+        function checkBattery() {
+            fetch('/battery')
+            .then(response => response.json())
+            .then(data => {
+                if (data.alert) {
+                    document.getElementById('alert').innerText = data.alert;
+                } else {
+                    document.getElementById('alert').innerText = '';
+                }
+                updateDroneStatus(data);
+            });
+        }
+
+        // Функция для симуляции препятствий
+        function simulateObstacle() {
+            fetch('/simulate_obstacle')
+            .then(response => response.json())
+            .then(data => {
+                if (data.alert) {
+                    document.getElementById('obstacle-info').innerText = data.alert;
+                } else {
+                    document.getElementById('obstacle-info').innerText = `Обнаружено препятствие на расстоянии: ${data.obstacle_distance} метров.`;
+                }
+            });
+        }
+
+        // Функция для симуляции погодных условий
+        function simulateWeather() {
+            fetch('/simulate_weather')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('weather-info').innerText = `Погодные условия: ${data.weather}, Скорость ветра: ${data.wind_speed} м/с.`;
+            });
+        }
+
+        // Функция для обновления статуса дрона на странице
+        function updateDroneStatus(data) {
+            document.getElementById('drone-status').innerHTML = `
+                <p>Высота: ${data.altitude} м</p>
+                <p>Скорость: ${data.speed} м/с</p>
+                <p>Координаты: (${data.position[0]}, ${data.position[1]})</p>
+                <p>Уровень заряда батареи: ${data.battery}%</p>
+                <p>Направление: ${data.direction}°</p>
+            `;
+        }
+
+        // Инициализация: получение текущего статуса дрона при загрузке страницы
+        window.onload = function() {
+            fetch('/status')
+            .then(response => response.json())
+            .then(data => {
+                updateDroneStatus(data);
+            });
+        };
+    </script>
+</body>
+</html>
